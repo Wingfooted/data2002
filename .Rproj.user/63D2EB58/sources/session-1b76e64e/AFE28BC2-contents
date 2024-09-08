@@ -1,0 +1,98 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+Trying to analyse traits of HD students
+
+```{r}
+library(tidyverse)
+library(gendercode)
+library(janitor)
+library(hms)
+```
+
+```{r}
+
+
+x = readxl::read_excel("data/DATA2x02_survey_2024_Responses.xlsx")
+old_names = colnames(x)
+new_names = c(
+  "timestamp",
+  "target_grade",
+  "assignment_preference",
+  "trimester_or_semester",
+  "age",
+  "tendency_yes_or_no",
+  "pay_rent",
+  "urinal_choice",
+  "stall_choice",
+  "weetbix_count",
+  "weekly_food_spend",
+  "living_arrangements",
+  "weekly_alcohol",
+  "believe_in_aliens",
+  "height",
+  "commute",
+  "daily_anxiety_frequency",
+  "weekly_study_hours",
+  "work_status",
+  "social_media",
+  "gender",
+  "average_daily_sleep",
+  "usual_bedtime",
+  "sleep_schedule",
+  "sibling_count",
+  "allergy_count",
+  "diet_style",
+  "random_number",
+  "favourite_number",
+  "favourite_letter",
+  "drivers_license",
+  "relationship_status",
+  "daily_short_video_time",
+  "computer_os",
+  "steak_preference",
+  "dominant_hand",
+  "enrolled_unit",
+  "weekly_exercise_hours",
+  "weekly_paid_work_hours",
+  "assignments_on_time",
+  "used_r_before",
+  "team_role_type",
+  "university_year",
+  "favourite_anime",
+  "fluent_languages",
+  "readable_languages",
+  "country_of_birth",
+  "wam",
+  "shoe_size")
+ # overwrite the old names with the new names:
+colnames(x) = new_names
+# combine old and new into a data frame:
+name_combo = bind_cols(New = new_names, Old = old_names)
+glimpse(x)
+```
+
+```{r}
+# cleaning the data for work_status
+unique(sort(x$work_status))
+unique(sort(x$weekly_paid_work_hours))
+```
+
+``` r
+:
+```
+
+# Expectation
+
+HD students Expectation of grades, do HD students expect significantly different results than non high performing students. Proportions of expectations ought to remain consistent through
+
+# How do average time spent of HD students on studying compare to non HD students.
+
+Comparing the mean study times of students who scored a HD grade against students who did not score a HD grade.
+
+# How does employment affect study habits of HD students
+
+Take a subset of data where all students scored HD historically and filter for realistic submissions. How does the employment status (casual, part time, full time) of students influence hours studied.

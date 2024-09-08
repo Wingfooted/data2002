@@ -1,0 +1,119 @@
+"0",""
+"0",""
+"0","x = readxl::read_excel(""data/DATA2x02_survey_2024_Responses.xlsx"")"
+"0","old_names = colnames(x)"
+"0","new_names = c("
+"0","  ""timestamp"","
+"0","  ""target_grade"","
+"0","  ""assignment_preference"","
+"0","  ""trimester_or_semester"","
+"0","  ""age"","
+"0","  ""tendency_yes_or_no"","
+"0","  ""pay_rent"","
+"0","  ""urinal_choice"","
+"0","  ""stall_choice"","
+"0","  ""weetbix_count"","
+"0","  ""weekly_food_spend"","
+"0","  ""living_arrangements"","
+"0","  ""weekly_alcohol"","
+"0","  ""believe_in_aliens"","
+"0","  ""height"","
+"0","  ""commute"","
+"0","  ""daily_anxiety_frequency"","
+"0","  ""weekly_study_hours"","
+"0","  ""work_status"","
+"0","  ""social_media"","
+"0","  ""gender"","
+"0","  ""average_daily_sleep"","
+"0","  ""usual_bedtime"","
+"0","  ""sleep_schedule"","
+"0","  ""sibling_count"","
+"0","  ""allergy_count"","
+"0","  ""diet_style"","
+"0","  ""random_number"","
+"0","  ""favourite_number"","
+"0","  ""favourite_letter"","
+"0","  ""drivers_license"","
+"0","  ""relationship_status"","
+"0","  ""daily_short_video_time"","
+"0","  ""computer_os"","
+"0","  ""steak_preference"","
+"0","  ""dominant_hand"","
+"0","  ""enrolled_unit"","
+"0","  ""weekly_exercise_hours"","
+"0","  ""weekly_paid_work_hours"","
+"0","  ""assignments_on_time"","
+"0","  ""used_r_before"","
+"0","  ""team_role_type"","
+"0","  ""university_year"","
+"0","  ""favourite_anime"","
+"0","  ""fluent_languages"","
+"0","  ""readable_languages"","
+"0","  ""country_of_birth"","
+"0","  ""wam"","
+"0","  ""shoe_size"")"
+"0"," # overwrite the old names with the new names:"
+"0","colnames(x) = new_names"
+"0","# combine old and new into a data frame:"
+"0","name_combo = bind_cols(New = new_names, Old = old_names)"
+"0","glimpse(x)"
+"1","Rows: 313"
+"1",""
+"1","
+"
+"1","Columns: 49"
+"1",""
+"1","
+"
+"1","$ timestamp               [3m[38;5;246m<dttm>[39m[23m 2024-08-03 11:15:58, 2024-08-03 11:23:23, 2024-08-03 11:27:01, 2024-08-…
+$ target_grade            [3m[38;5;246m<chr>[39m[23m ""Pass"", ""Fail"", ""High Distinction"", ""High Distinction"", ""High Distinctio…
+$ assignment_preference   [3m[38;5;246m<chr>[39m[23m ""cram at the last second"", ""cram at the last second"", ""draw up a schedul…
+$ trimester_or_semester   [3m[38;5;246m<chr>[39m[23m ""Not sure"", ""Semester"", ""Semester"", ""Semester"", ""Semester"", ""Semester"", …
+$ age                     [3m[38;5;246m<chr>[39m[23m ""20+"", ""19.0"", ""21.0"", ""20.0"", ""19.0"", ""18.0"", ""20.0"", ""20.0"", ""19.0"", ""…
+$ tendency_yes_or_no      [3m[38;5;246m<chr>[39m[23m ""More \""Yes\"""", ""More \""No\"""", ""More \""Yes\"""", ""More \""Yes\"""", ""More \""Y…
+$ pay_rent                [3m[38;5;246m<chr>[39m[23m ""Yes"", ""No"", ""Yes"", ""No"", ""No"", ""Yes"", ""No"", ""No"", ""Yes"", ""Yes"", ""No"", ""…
+$ urinal_choice           [3m[38;5;246m<chr>[39m[23m ""C: Furthest from the entrance"", ""C: Furthest from the entrance"", ""B: Mi…
+$ stall_choice            [3m[38;5;246m<chr>[39m[23m ""A: Closest to the entrance"", ""C: Furthest from the entrance"", ""C: Furth…
+$ weetbix_count           [3m[38;5;246m<dbl>[39m[23m 5.0, 5.0, 0.0, NA, 0.0, 1.0, 4.0, 2.0, 7.0, 30.0, 4.0, 2.0, 0.0, 4.0, 0.…
+$ weekly_food_spend       [3m[38;5;246m<dbl>[39m[23m 10, 20, 300, 35, 50, 150, 100, 250, 30, 20, NA, 100, 100, 50, 10, 0, 150…
+$ living_arrangements     [3m[38;5;246m<chr>[39m[23m ""With parent(s) and/or sibling(s)"", ""With parent(s) and/or sibling(s)"", …
+$ weekly_alcohol          [3m[38;5;246m<chr>[39m[23m ""I don't drink alcohol"", ""Less than 5 standard drinks"", ""I don't drink a…
+$ believe_in_aliens       [3m[38;5;246m<chr>[39m[23m ""Yes"", ""Yes"", ""Yes"", ""Yes"", ""No"", ""No"", ""Yes"", ""Yes"", ""Yes"", ""No"", ""Yes""…
+$ height                  [3m[38;5;246m<chr>[39m[23m ""160+"", ""183cm"", ""180.0"", ""163.0"", ""156cm"", ""156 cm"", ""5 foot 8 inches"",…
+$ commute                 [3m[38;5;246m<chr>[39m[23m ""Train, Walk"", ""Train, Walk"", ""Walk"", ""Train, Bus, Walk"", ""Train"", ""Walk…
+$ daily_anxiety_frequency [3m[38;5;246m<dbl>[39m[23m 10, 2, 10, 5, 1, 4, 5, 3, 4, 6, 2, 8, 3, 2, 5, 10, 7, 1, 5, 10, 4, 1, 10…
+$ weekly_study_hours      [3m[38;5;246m<dbl>[39m[23m 2, 10, 120, NA, 20, 28, 20, 15, 30, 21, NA, 20, 24, 36, 15, 20, 20, 50, …
+$ work_status             [3m[38;5;246m<chr>[39m[23m ""I don't currently work"", ""Casual"", ""I don't currently work"", ""Contracto…
+$ social_media            [3m[38;5;246m<chr>[39m[23m ""Instagram"", NA, ""tiktok"", ""Instagram"", ""Snapchat"", ""WhatsApp"", ""Instagr…
+$ gender                  [3m[38;5;246m<chr>[39m[23m ""Female"", ""Male"", ""male"", NA, ""Female"", ""Female"", ""Male"", ""Male"", NA, ""f…
+$ average_daily_sleep     [3m[38;5;246m<chr>[39m[23m ""4-5"", ""8 hours"", ""7.0"", ""7.0"", ""9 hours"", ""6 hours"", ""8 hours"", ""7 hour…
+$ usual_bedtime           [3m[38;5;246m<dttm>[39m[23m 1899-12-31 23:00:00, 1899-12-31 11:00:00, 1899-12-31 03:00:00, NA, 1899…
+$ sleep_schedule          [3m[38;5;246m<dbl>[39m[23m 1, 8, 3, 1, 10, 4, 7, 1, 7, 10, 4, 7, 8, 8, 5, 8, 9, 4, 4, 7, 7, 8, 1, 7…
+$ sibling_count           [3m[38;5;246m<chr>[39m[23m ""1.0"", ""1.0"", ""1.0"", ""1.0"", ""1.0"", ""0.0"", ""I have 2 siblings"", ""1.0"", ""1…
+$ allergy_count           [3m[38;5;246m<chr>[39m[23m ""2.0"", ""0.0"", ""1.0"", NA, ""0.0"", ""1.0"", ""I have no allergies"", ""None"", ""0…
+$ diet_style              [3m[38;5;246m<chr>[39m[23m ""Plant based"", ""Omnivorous"", ""Omnivorous"", ""Omnivorous"", ""Omnivorous"", ""…
+$ random_number           [3m[38;5;246m<dbl>[39m[23m 5, 8, 5, 7, 4, 2, 5, 7, 3, 2, 1, 7, 6, 2, 6, 5, 4, 8, 3, 4, 3, 5, 2, 5, …
+$ favourite_number        [3m[38;5;246m<dbl>[39m[23m 7, 6, 5, NA, 5, 2, 8, 7, 8, 2, NA, 2, 1, 8, 8, 5, 7, 4, 5, 6, 7, 7, 3, 5…
+$ favourite_letter        [3m[38;5;246m<chr>[39m[23m ""None"", ""J"", ""X"", ""J"", ""a"", ""S"", ""π"", ""L"", ""Z"", ""g"", NA, ""P"", ""V"", ""G"", …
+$ drivers_license         [3m[38;5;246m<chr>[39m[23m ""Yes"", ""Yes"", ""Yes"", ""Yes"", ""Yes"", ""No"", ""Yes"", ""Yes"", ""Yes"", ""No"", ""No""…
+$ relationship_status     [3m[38;5;246m<chr>[39m[23m ""No"", ""No"", ""Yes"", ""No"", ""No"", ""No"", ""No"", ""Yes"", ""Yes"", ""No"", ""No"", ""Ye…
+$ daily_short_video_time  [3m[38;5;246m<chr>[39m[23m ""5 minutes"", ""0.0"", ""3.0"", NA, ""3 hours"", ""0.0"", ""1.0"", ""more than I sho…
+$ computer_os             [3m[38;5;246m<chr>[39m[23m ""MacOS"", ""Linux"", ""MacOS"", ""MacOS"", ""Windows"", ""MacOS"", ""MacOS"", ""MacOS""…
+$ steak_preference        [3m[38;5;246m<chr>[39m[23m ""I don't eat beef"", ""Medium-rare"", ""Well done"", NA, ""Medium-rare"", ""I do…
+$ dominant_hand           [3m[38;5;246m<chr>[39m[23m ""Right"", ""Right"", ""Ambidextrous"", ""Right"", ""Right"", ""Right"", ""Right"", ""R…
+$ enrolled_unit           [3m[38;5;246m<chr>[39m[23m ""DATA2002"", ""DATA2902"", ""DATA2002"", ""DATA2902"", ""DATA2002"", ""DATA2002"", …
+$ weekly_exercise_hours   [3m[38;5;246m<dbl>[39m[23m 0.5, 7.0, 2.0, 1.0, 8.0, 6.0, 6.0, 2.0, 6.0, 2.0, 2.0, 7.0, 3.0, 11.0, 4…
+$ weekly_paid_work_hours  [3m[38;5;246m<dbl>[39m[23m 0.0, 20.0, 0.0, NA, 20.0, 0.0, 26.0, 5.0, 15.0, 0.0, NA, 10.0, 5.0, 4.5,…
+$ assignments_on_time     [3m[38;5;246m<chr>[39m[23m ""Always"", ""Always"", ""Always"", ""Always"", ""Always"", ""Usually"", ""Always"", N…
+$ used_r_before           [3m[38;5;246m<chr>[39m[23m ""Yes"", ""Yes"", ""Yes"", ""Yes"", ""Yes"", ""Yes"", ""Yes"", ""Yes"", ""Yes"", ""Yes"", ""Y…
+$ team_role_type          [3m[38;5;246m<dbl>[39m[23m 10, 6, 3, 10, 7, 7, 7, 8, 8, 8, NA, 9, 7, 9, 10, 5, 8, 10, 9, 9, 8, 9, 2…
+$ university_year         [3m[38;5;246m<chr>[39m[23m ""Second year"", ""Second year"", ""Second year"", ""Second year"", ""Second year…
+$ favourite_anime         [3m[38;5;246m<chr>[39m[23m ""Naruto"", NA, NA, ""Your lie in april"", ""n/a"", ""None"", ""n/a"", ""Pokemon Ho…
+$ fluent_languages        [3m[38;5;246m<chr>[39m[23m ""3.0"", ""1.0"", ""2.0"", ""3.0"", ""1.0"", ""2.0"", ""Only English"", ""2.0"", ""3.0"", …
+$ readable_languages      [3m[38;5;246m<chr>[39m[23m ""3.0"", ""2.0"", ""2.0"", NA, ""1.0"", ""3.0"", ""I can only read English"", ""2.0"",…
+$ country_of_birth        [3m[38;5;246m<chr>[39m[23m ""Australia"", ""Australia"", ""China"", ""Australia"", ""Australia"", ""India"", ""A…
+$ wam                     [3m[38;5;246m<dbl>[39m[23m 65.0, 86.0, 75.0, 90.0, 74.0, 77.3, 92.4, 75.0, 73.0, 85.0, NA, 80.1, 83…
+$ shoe_size               [3m[38;5;246m<dbl>[39m[23m 42.0, 10.5, 44.0, NA, 7.0, 6.0, 42.0, 43.0, 11.0, 7.0, NA, 11.0, 8.0, 11…"
+"1",""
+"1","
+"

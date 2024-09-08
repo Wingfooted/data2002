@@ -1,0 +1,430 @@
+---
+title: "Your title here"
+date: "`r Sys.Date()`"
+author: "530473439"
+format: 
+  html: 
+    embed-resources: true # Creates a single HTML file as output
+    code-fold: true # Code folding; allows you to show/hide code chunks
+    code-tools: true # Includes a menu to download the code file 
+    # code-tools are particularly important if you use inline R to 
+    # improve the reproducibility of your report
+table-of-contents: true # (Optional) Creates a table of contents
+number-sections: true # (Optional) Puts numbers next to heading/subheadings
+---
+
+Trying to analyse traits of HD students
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(hms)
+library(patchwork)
+library(ggpubr)
+```
+
+```{r}
+
+x = readxl::read_excel("data/DATA2x02_survey_2024_Responses.xlsx")
+old_names = colnames(x)
+new_names = c(
+  "timestamp",
+  "target_grade",
+  "assignment_preference",
+  "trimester_or_semester",
+  "age",
+  "tendency_yes_or_no",
+  "pay_rent",
+  "urinal_choice",
+  "stall_choice",
+  "weetbix_count",
+  "weekly_food_spend",
+  "living_arrangements",
+  "weekly_alcohol",
+  "believe_in_aliens",
+  "height",
+  "commute",
+  "daily_anxiety_frequency",
+  "weekly_study_hours",
+  "work_status",
+  "social_media",
+  "gender",
+  "average_daily_sleep",
+  "usual_bedtime",
+  "sleep_schedule",
+  "sibling_count",
+  "allergy_count",
+  "diet_style",
+  "random_number",
+  "favourite_number",
+  "favourite_letter",
+  "drivers_license",
+  "relationship_status",
+  "daily_short_video_time",
+  "computer_os",
+  "steak_preference",
+  "dominant_hand",
+  "enrolled_unit",
+  "weekly_exercise_hours",
+  "weekly_paid_work_hours",
+  "assignments_on_time",
+  "used_r_before",
+  "team_role_type",
+  "university_year",
+  "favourite_anime",
+  "fluent_languages",
+  "readable_languages",
+  "country_of_birth",
+  "wam",
+  "shoe_size")
+ # overwrite the old names with the new names:
+colnames(x) = new_names
+# combine old and new into a data frame:
+name_combo = bind_cols(New = new_names, Old = old_names)
+```
+
+# 2.1 Data Quality & Data Set Discussion
+
+## Is this a random sample of DATA2X02 students?
+
+Of the 759 students of data2x02 there were only 313 responses and hence a 41% response rate. As a majority of students did not respond there is significant room for the data set to not be a representative sample of DATA2X02 Students, or a "non-random data set". However, without conclusive descriptive statistics it is impossible to conclude. In section "what are potential biases?" we will demonstrate with a chi-squared test that this sample is not an independent sampling, implying that there is a selection bias within the data.
+
+One way to visualize the self selection bias is through a time series of responses over time as shown below.
+
+```{r}
+
+daily_counts <- x |>
+  group_by(timestamp) |>
+  summarise(count = n())
+
+lambda = mean(daily_counts$count)
+
+time_series_plot <- x |>
+  ggplot(aes(x = timestamp)) +
+  geom_histogram(binwidth = 86400, color = "black", fill = "skyblue") + 
+  labs(x = "Timestamp", y = "Frequency", title = "Frequency of Responses Over Time") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1) 
+  )
+
+time_series_plot
+```
+
+Which follows a general poisson distribution modeled by $X \sim Poisson(\lambda)$. However, there are
+
+## What are the potential biases
+
+Within this data set there are multiple biases, but primarily on account of the types of questions asked a response bias is present, and on account of the types of students that are inclined to respond to surveys, a selection bias is present. To determine weather a selection bias exists an additional chi-squared test for homogeneity among populations of data2902 and data2002. Under the null hypothesis the proportions of students in data2902 who responded, and data2002 who responded would be the same. This is an appropriate null hypothesis to test for independence of the two groups, as later through the report we will be analyzing traits of HD students of the sample of survey respondents.
+
+```{r}
+cols = c("respondants", "non-respondants")
+rows = c("data2002", "data2902")
+totals = c(675, 84)
+responses = c(sum(x$enrolled_unit == "DATA2002", na.rm = TRUE), 
+              sum(x$enrolled_unit == "DATA2902", na.rm = TRUE)
+              )
+non_responses = totals-responses
+responses
+mat = matrix(c(non_responses, responses), 2,2)
+mat
+chisq.test(mat, correct=FALSE)
+chisq.test(mat, correct=FALSE)$ex #checking to see if all expected counts are greater than 5
+
+```
+
+Here the assumption of expected cell counts above 5 is made for the chi-squared approximation to be appropriate; a criteria that is met. Calculating the p-value with an p \>= 0.05 threshold for significance gives a p value of $2.45 \cdot 10^{-8}$; hence implying that there is a clear selection bias in the respondents of the survey. Further, this too provides a more definitive answer to "Is this a random data set of students?" — no, as there is a strong selection bias where data2902 students nominated themselves more frequently.
+
+As for response bias, there are a few poorly asked questions that lead to response bias. Take for instance average hours slept. For many respondents this is a guess, often rounded to the nearest hour. Or for instance height, which in general populations approximates a normal curve.
+
+```{r}
+#as height is being used to demonstrate a point of bucketing / rounding phenomena, it is appropriate to remove inches.
+x = x |> 
+  dplyr::mutate(
+    height_clean = readr::parse_number(height),
+    height_clean = case_when(
+      height_clean >= 1000 ~ NA_real_,
+      height_clean <= 10 ~ NA_real_, #removing all inches
+      height_clean <= 2.5 ~ height_clean*100,
+      TRUE ~ height_clean
+    ),
+    wam_clean = case_when(
+      wam >= 95 & target_grade == "HIGH_DISTINCTION" ~ NA_real_,
+      wam <= 30 ~ NA_real_, #impossible to pass prerequisites with this wam
+      TRUE ~ wam),
+
+    gender_clean = case_when(
+      substr(gender, 1, 1)  == "M" ~ "Male",
+      substr(gender, 1, 1)  == "m" ~ "Male",
+      substr(gender, 1, 1) == "F" ~ "Female",
+      substr(gender, 1, 1) == "f" ~ "Female",
+      TRUE ~ "Other")
+  )
+
+p1 = x |>
+  ggplot()+
+  aes(x = height_clean,
+      fill = gender_clean) + 
+  geom_histogram(binwidth = 1)+ 
+  labs(x = "Height (cm)", y = "Frequency") +
+  theme(
+      legend.position = c(1, 1),
+      legend.justification = c(1, 1),
+      legend.background = element_blank(),
+      legend.box.background = element_blank()
+    )
+
+p2 = x |>
+  ggplot()+
+  aes(x = wam_clean,
+      fill = enrolled_unit
+      ) + 
+  geom_histogram(binwidth = 4) + 
+  labs(x = "Weighted Average Mark", y = "Frequency") +
+  theme(
+      legend.position = c(1, 1),
+      legend.justification = c(1, 1),
+      legend.background = element_blank(),
+      legend.box.background = element_blank()
+    )
+
+p1  + p2 + plot_layout(ncol = 2)
+
+```
+
+Although it could be argued that the sample in this case does represent normality somewhat accurately, there are "bin artefacts", or accumulations at the points, 160, 170, 175 and 180. This is one example of response bias where people round heights to the nearest discrete measurement. Similarly, in the plots for weighted average mark (WAM), rounding too seems to take place at 75, and around grade thresholds. The histogram of student WAM's visually conforms with an assumption of normality, however due to response bias responses tend to congregate around round grade thresholds such as distinction average (75) and credit average (65). Together this forms clear proof of response bias throught the sample in certain categories.
+
+As a bulk of this report is concerned with performing hypothesis testing on WAM scores of students in order to understand which factors are significant and aren't significant in student academic performance, and thus data-bias in WAM scores is very important. Although the histogram of WAM scores in figure 2 does exhibit binning artefacts, it is impossible to conclude because it appears to be a bi modal distribution under DATA2902 and DATA2002 students, and likely many other factors. Nonetheless, these binning artefacts will be addressed through appropriate data-wrangling and analysis with QQ-plots to determine if chosen test statistics are appropriate if normality is assumed. However the best way to mitigate binning artefacts would be through sampling methods and question selection, which will be explored within section 2.3.
+
+## 2.3
+
+A
+
+# 2.2 Specific Hypothesis Tests
+
+## Is a linkage model between target grades and 'high', 'low' and 'medium' hours studied per week consistent with observed data at the p \< 0.05 significance level?
+
+Is there a relationship between target grades and hours studied per week.
+
+```{r}
+
+x = x |> mutate(
+  weekly_study_hours = as.character(weekly_study_hours),
+  hours_numeric = readr::parse_number(weekly_study_hours),
+  hours_numeric = case_when(
+    hours_numeric > 100 ~ NA_real_,
+    TRUE ~ hours_numeric
+  ),
+  hours_buckets = case_when(
+    hours_numeric < 10 ~ "Low",
+    hours_numeric > 40 ~ "High",
+    TRUE ~ "Medium"
+  ),
+  grade = case_when(
+    wam_clean < 75 ~ "CR + P", # fail students not contained in dataset
+    wam_clean < 85 ~ "D",
+    TRUE ~ "HD"
+  )
+)
+
+table_full = table(x$hours_buckets, x$grade)
+?c
+chisq.test(matrix(table_full, 3, 3), p=c(1/9, 1:9))
+chisq.test(matrix(table_full, 3, 3))$ex # all values are greather than 5
+
+#p3 = x |>
+#  ggplot() +
+#  aes(x = x)
+#  geom_boxplot() +
+```
+
+HD students Expectation of grades, do HD students expect significantly different results than non HD students. Proportions of expectations ought to remain consistent through
+
+## Are mean WAM scores significantly different between International and Domestic students at the p \< 0.05 level?
+
+Although the survey did not explicitly ask respondents citizenship, data on residency status can be inferred from the country of birth and weekly hours worked. Given
+
+```{r}
+
+x = x |> mutate(
+  Citizenship = case_when(
+    substr(country_of_birth, 1, 2) == "au" |
+    substr(country_of_birth, 1, 2) == "AU" |
+    substr(country_of_birth, 1, 2) == "Au"  ~ "Domestic",
+    #add case where proof of work implies citizenship. 
+    weekly_paid_work_hours >= 26 ~ "Domestic",
+    TRUE ~ "International"
+  ),
+  # including this criteria 
+  Citizenship = case_when(
+    Citizenship == "International" & 
+    living_arrangements == "With parent(s) and/or sibling(s)" ~ "Domestic",
+    TRUE ~ Citizenship
+  )
+)
+p1 = x |> ggplot() +
+  aes(x = Citizenship, y = wam_clean, fill = Citizenship) +
+  geom_violin(alpha = 0.6, color = "black") +
+  geom_boxplot(width = 0.035, fill="grey", outliers = FALSE, na.rm = TRUE) +
+  labs(
+    title = "WAM Distribution by Citizenship Status",
+    x = "Residency Status",
+    y = "Weighted Average Mark (WAM)"
+  ) +
+  scale_fill_manual(values = c("lightblue", "aquamarine")) +
+  theme_linedraw() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+p2 <-  ggqqplot(x, x = 'wam_clean', facet.by = 'Citizenship') +  labs(title = "QQ-Plot: WAM by Residency")
+
+p1 + p2 + plot_layout(ncol = 2)
+
+
+```
+
+Figure 3: Grade distributions of students enrolled in DATA2002 and DATA2902 separated by (inferred) residency status of students.
+
+```{r}
+
+kurtosis = function(x) {
+  n <- length(x)
+  mean_x <- mean(x, na.rm = TRUE)
+  sd_x <- sd(x, na.rm = TRUE)
+  fourth_moment <- sum((x - mean_x)^4, na.rm = TRUE) / n
+  kurt <- (fourth_moment / (sd_x^4)) - 3
+  return(kurt)
+}
+  
+table_data = x |>
+  select(wam_clean, Citizenship) |> 
+  group_by(Citizenship) |> 
+  drop_na() |>
+  summarise(
+    n = n(),
+    Mean = mean(wam_clean) |> round(3),
+    SD = sd(wam_clean) |> round(3),
+    Kurtosis = kurtosis(wam_clean) |> round(3)
+  )
+
+knitr::kable(table_data)
+
+```
+
+1.  **Hypothesis**: Let $\mu_D$ and $\mu_I$ be average WAM scores for domestic and international students respectively. Under the null hypothesis $H_0:\mu_I=\mu_D$ vs $H_1:\mu_D>\mu_I$.
+
+2.  **Assumptions** For two sample t-tests, there are underlying assumptions of normal distribution and equal variances. As observed within the table of variances, the standard deviations for the two samples is 9 respectively, and hence a two sample t-test is appropriate. Furthermore, as observed within the violin plots in fig 2, the distribution is symmetric (visible on the overlay box plots). Finally, relative normality is confirmed within the QQ-plots, however the non-linear distribution of sample,theoretical z score values in the qq plot on the extreme ends should case some aspersions on the final validity of the two sample t-test. Hence, the samples of domestic and international students appear to be normally distributed.
+
+Finally, there is another assumption made about international and domestic students. No question was posed within the survey asking respondents about residency status, and hence this was inferred through the following criteria for being a domestic student. "1. Born in Australia or 2. live with parents or siblings or 3, work more than 26 hours per week". For the purposes of this two sample t-test, it is fair to assume that this is a fair test for domestic residency status, as the final proportions of 126 to 135 represent the approximate proportions of domestic to international students at the University of Sydney, of which DATA2X02 survey respondents are a representative sample.
+
+3.  **Test Statistic** $$
+    T = \frac{\bar{X}_D - \bar{X}_I}{\sqrt{S_p^2 \left(\frac{1}{n_D} + \frac{1}{n_I}\right)}} \\ \text{Where pooled standard deviation is given by: } S_p^2 = \frac{(n_D - 1)S_D^2 + (n_I - 1)S_I^2}{n_D + n_I - 2} \\ \text{and Degrees of freedom by: }\text{df} = n_D + n_I - 2
+    $$
+4.  **Observed Test Statistic:** $t0=1.617$
+5.  **p-Value:** $P(t_{259} > 1.617)=0.05355$
+6.  **Decision:** at the $\alpha=0.05$ significance level, do not reject the null hypothesis, and hence there is no significant different between domestic and international student grades who are enrolled in DATA2X02 subjects.
+
+```{r}
+#knitr::
+domestic = x |>
+  filter(Citizenship == "Domestic") |>
+  select(wam_clean)
+international = x |>
+  filter(Citizenship == "International") |>
+  select(wam_clean)
+t.test(domestic, international, correct=FALSE, var.eq = TRUE,
+       alternative="greater")
+
+```
+
+## Among historically HD-scoring students, there is no significant difference in anxiety levels based on the number of hours spent studying each week.
+
+```{r}
+x = x |> mutate(
+  anxiety_buckets = case_when(
+    daily_anxiety_frequency < 3 ~ "Low",
+    daily_anxiety_frequency < 6 ~ "Moderate",
+    TRUE ~ "High"
+  ),
+  study_buckets = case_when(
+    hours_numeric < 10 ~ "0-10",
+    hours_numeric < 20 ~ "10-20",
+    hours_numeric < 30 ~ "20-30",
+    hours_numeric < 40 ~ "30-40",
+    hours_numeric < 50 ~ "40-50",
+    TRUE ~ "50+"
+  ),
+) |> mutate(
+  anxiety_buckets = factor(anxiety_buckets, levels = c("Low", "Moderate", "High")),
+  study_buckets = factor(study_buckets, levels = c("0-10", "10-20", "20-30", "40-50", "50+"))
+  )
+
+hd_data = x |> filter(grade == "HD")
+
+table_full = table(hd_data$anxiety_buckets, hd_data$study_buckets)
+
+chisq.test(table_full, simulate.p.value=TRUE)$ex
+
+ex = chisq.test(table_full)$ex
+high = ex[1, 1:5]
+low = ex[2, 1:5]
+moderate = ex[3, 1:5]
+long = c(high, low, moderate)
+high
+
+length(x|>filter(grade=="HD"))
+
+p2 = x |> filter(grade=="HD") |> filter(study_buckets != "50+") |> select(anxiety_buckets, study_buckets) |> ggplot(
+  aes(
+    anxiety_buckets,
+  )
+) +
+  geom_bar(
+    aes(fill=study_buckets),
+    position = "dodge"
+  )
+p2
+
+
+
+
+
+```
+
+------------------------------------------------------------------------
+
+Does a distribution of HD student expected values over hours studied and
+
+```{r}
+hd_data = x |> filter(grade == "HD") 
+cr_data = x |> filter(grade == "CR + P")
+
+table_hd = table(hd_data$anxiety_buckets, hd_data$study_buckets_fine)
+chisq.test(table_hd, simulate.p.value=FALSE)$ex
+chisq.test(table_hd, simulate.p.value=TRUE)$ex
+?chisq.test
+
+# Load necessary library
+library(ggplot2)
+library(reshape2)
+
+# Create the data frame
+ex = 
+
+
+
+
+```
+
+# ----
+
+# How do average time spent of HD students on studying compare to non HD students.
+
+Comparing the mean study times of students who scored a HD grade against students who did not score a HD grade.
+
+# How does employment affect study habits of HD students
+
+Take a subset of data where all students scored HD historically and filter for realistic submissions. How does the employment status (casual, part time, full time) of students influence hours studied.
+
+# 3. Conclusion
+
+Here we have showed that
