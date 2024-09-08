@@ -204,7 +204,7 @@ A
 
 ## Is a linkage model between target grades and 'high', 'low' and 'medium' hours studied per week consistent with observed data at the p \< 0.05 significance level?
 
-Is there a relationship between target grades and hours studied per week.
+The purpose of investigating a linkage model between target grades (HD, D, CR, P, F) and hours studied, which was bucketed into low (0 - 15 h), medium (15 - 40h) and high ( 40+), was to see if students that expected higher grades studied more, or claimed to study more (due to survey limitations).
 
 ```{r}
 
@@ -216,7 +216,7 @@ x = x |> mutate(
     TRUE ~ hours_numeric
   ),
   hours_buckets = case_when(
-    hours_numeric < 10 ~ "Low",
+    hours_numeric < 15 ~ "Low",
     hours_numeric > 40 ~ "High",
     TRUE ~ "Medium"
   ),
@@ -228,21 +228,20 @@ x = x |> mutate(
 )
 
 table_full = table(x$hours_buckets, x$grade)
-?c
+all(chisq.test(matrix(table_full, 3, 3))$ex > 5) # all values are greather than 5
 chisq.test(matrix(table_full, 3, 3), p=c(1/9, 1:9))
-chisq.test(matrix(table_full, 3, 3))$ex # all values are greather than 5
 
-#p3 = x |>
-#  ggplot() +
-#  aes(x = x)
-#  geom_boxplot() +
 ```
+
+1.  **Hypothesis**: $H_0: p_i=0.111, \ \text{for} \ i=1,2,...,9$ and the alternative hypothesis being $H_1:p_i\neq0.111 \ \text{for some} \ i=1,2,...,9$
+2.  **Assumptions:** That all expected cell counts are above 5. An assumption that is met, after credit and pass grades are combined.
+3.  **Decision:** As the p value is 0.1297, we do not reject the null hypothesis, as within the data there is sufficient evidence to suggest that there is a relationship between studying more and expecting higher grades.
 
 HD students Expectation of grades, do HD students expect significantly different results than non HD students. Proportions of expectations ought to remain consistent through
 
 ## Are mean WAM scores significantly different between International and Domestic students at the p \< 0.05 level?
 
-Although the survey did not explicitly ask respondents citizenship, data on residency status can be inferred from the country of birth and weekly hours worked. Given
+Although the survey did not explicitly ask respondents citizenship, data on residency status can be inferred from the country of birth and weekly hours worked, and living arrangment.
 
 ```{r}
 
@@ -312,16 +311,21 @@ knitr::kable(table_data)
 
 1.  **Hypothesis**: Let $\mu_D$ and $\mu_I$ be average WAM scores for domestic and international students respectively. Under the null hypothesis $H_0:\mu_I=\mu_D$ vs $H_1:\mu_D>\mu_I$.
 
-2.  **Assumptions** For two sample t-tests, there are underlying assumptions of normal distribution and equal variances. As observed within the table of variances, the standard deviations for the two samples is 9 respectively, and hence a two sample t-test is appropriate. Furthermore, as observed within the violin plots in fig 2, the distribution is symmetric (visible on the overlay box plots). Finally, relative normality is confirmed within the QQ-plots, however the non-linear distribution of sample,theoretical z score values in the qq plot on the extreme ends should case some aspersions on the final validity of the two sample t-test. Hence, the samples of domestic and international students appear to be normally distributed.
-
-Finally, there is another assumption made about international and domestic students. No question was posed within the survey asking respondents about residency status, and hence this was inferred through the following criteria for being a domestic student. "1. Born in Australia or 2. live with parents or siblings or 3, work more than 26 hours per week". For the purposes of this two sample t-test, it is fair to assume that this is a fair test for domestic residency status, as the final proportions of 126 to 135 represent the approximate proportions of domestic to international students at the University of Sydney, of which DATA2X02 survey respondents are a representative sample.
+2.  **Assumptions** For two sample t-tests, there are underlying assumptions of normal distribution and equal variances. As observed within the table of variances, the standard deviations for the two samples is 9 respectively, and hence a two sample t-test is appropriate. Furthermore, as observed within the violin plots in fig 2, the distribution is symmetric (visible on the overlay box plots). Domestic students have a marginally more leptokurtic distribution than International students, but both are relatively mesokurtic. Finally, relative normality is confirmed within the QQ-plots, however the non-linear distribution of sample,theoretical z score values in the qq plot on the extreme ends should case some aspersions on the final validity of the two sample t-test. Hence, the samples of domestic and international students appear to be normally distributed.\
+    \
+    Finally, there is another assumption made about international and domestic students. No question was posed within the survey asking respondents about residency status, and hence this was inferred through the following criteria for being a domestic student. "1. Born in Australia or 2. live with parents or siblings or 3, work more than 26 hours per week". For the purposes of this two sample t-test, it is fair to assume that this is a fair test for domestic residency status, as the final proportions of 126 to 135 represent the approximate proportions of domestic to international students at the University of Sydney, of which DATA2X02 survey respondents are a representative sample.
 
 3.  **Test Statistic** $$
     T = \frac{\bar{X}_D - \bar{X}_I}{\sqrt{S_p^2 \left(\frac{1}{n_D} + \frac{1}{n_I}\right)}} \\ \text{Where pooled standard deviation is given by: } S_p^2 = \frac{(n_D - 1)S_D^2 + (n_I - 1)S_I^2}{n_D + n_I - 2} \\ \text{and Degrees of freedom by: }\text{df} = n_D + n_I - 2
     $$
+
 4.  **Observed Test Statistic:** $t0=1.617$
+
 5.  **p-Value:** $P(t_{259} > 1.617)=0.05355$
-6.  **Decision:** at the $\alpha=0.05$ significance level, do not reject the null hypothesis, and hence there is no significant different between domestic and international student grades who are enrolled in DATA2X02 subjects.
+
+6.  **Decision:** at the $\alpha=0.05$ significance level, do not reject the null hypothesis. Or otherwise, at the 0.05 significance level there is no reason to believe that the null hypothesis is not true within the data presented. However, given that the p value is on the threshold of 0.05, it would be wise to look further into the issue.\
+    \
+    Given the consequence of the alternative hypothesis being true within data, ie that domestic students score higher grades on average than international students, it would be advisable for the University and its departments to perform more extensive studies on the issue, and if the alternative hypothesis were proven true, work to resolve it by either strengthening international entry requirements, providing additional support to struggling students or look into resolving ways the ways in which students are being disadvantaged as a population. Hence more testing and data is required to achieve a conclusive result.
 
 ```{r}
 #knitr::
@@ -358,13 +362,12 @@ x = x |> mutate(
   study_buckets = factor(study_buckets, levels = c("0-10", "10-20", "20-30", "40-50", "50+"))
   )
 
-hd_data = x |> filter(grade == "HD")
+hd_data = x |> filter(wam_clean >= 90)
 
 table_full = table(hd_data$anxiety_buckets, hd_data$study_buckets)
 
-chisq.test(table_full, simulate.p.value=TRUE)$ex
+ex = chisq.test(table_full, simulate.p.value=TRUE)$ex
 
-ex = chisq.test(table_full)$ex
 high = ex[1, 1:5]
 low = ex[2, 1:5]
 moderate = ex[3, 1:5]
@@ -408,14 +411,129 @@ library(ggplot2)
 library(reshape2)
 
 # Create the data frame
-ex = 
+
 
 
 
 
 ```
 
-# ----
+```{r}
+# Create a data frame with your proportions
+data <- data.frame(
+  Category = c("HD", "D", "CR", "P", "F"),
+  Proportion = c(25.7, 38.5, 23.4, 10.1, 2.3)
+)
+
+# Convert proportions to fractions for the pie chart
+data$Fraction <- data$Proportion / 100
+
+# Create the pie chart
+ggplot(data, aes(x = "", y = Fraction, fill = Category)) +
+  geom_bar(width = 1, stat = "identity") +
+  coord_polar(theta = "y") +
+  labs(title = "Proportions of Categories") +
+  theme_void() +
+  theme(legend.title = element_blank())
+```
+
+# ---- GRADE INFLATION
+
+# At the 0.025 significance level, is there evidence of "grade inflation" for DATA2002 or DATA2902 students?
+
+This Earlier this year a Sydney Morning Herald article by XXXX alleged grade inflation with data suggesting that grade distributions since 2011 had become more positive skewed in 2021. The proportions of the alleged grades are displayed below.
+
+```{r}
+smh_data = data.frame(
+  Category = c("HD", "D", "CR", "P", "F"),
+  proportion_2021 = c(0.257, 0.385, 0.234, 0.101, 0.023),
+  proportion_2011 = c(0.077, 0.228, 0.352, 0.299, 0.044)
+)
+
+# Convert to long format
+
+p1 = smh_data |> 
+  pivot_longer(
+    cols = starts_with("proportion"),
+    names_to = "Year",
+    values_to = "Proportion"
+  ) |> 
+  mutate(
+    Category = factor(Category, levels = c("HD", "D", "CR", "P", "F"))
+  ) |> 
+  ggplot(aes(x = Category, y = Proportion, fill = Year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_manual(values = c("proportion_2011" = "red", "proportion_2021" = "blue")) +
+  labs(title = "Proportions by Category and Year From the Sydney Morning Herald Article", x = "Category", y = "Proportion") +
+  theme_minimal()
+
+p1
+```
+
+To verify weather the students of DATA2002 are experiencing this grade inflation we will perform a chi-squared test, or a goodness of fit test, with null hypothesis being the proportions alleged in the Sydney Morning Herald Article. This test will be performed twice, once for DATA2002 and once for DATA2902.
+
+Due to a smaller sample size, the goodness of fit test for DATA2902 has to be performed with a simulated p value, due to low expected cell counts rendering the approximation to the chi-squared distribution less accurate.
+
+Additionally, a more stringent significance level was chosen for this test. Much of the Sydney Morning Herald article analysis outlines how grade inflation has negative societal implications and how "grade inflation could devalue degrees". Hence, hypothesis testing should reflect this additional importance, and to avoid false alarms and more stringent threshold for significance was chosen.
+
+```{r}
+set.seed(100)
+
+x = x |> mutate (
+  grade_abs = case_when(
+    wam_clean < 50 ~ "F",
+    wam_clean < 65 ~ "P",
+    wam_clean < 75 ~ "CR",
+    wam_clean < 85 ~ "D",
+    TRUE ~ "HD"
+  ),
+)
+x$grade_abs = factor(x$grade_abs, levels = c("HD", "D", "CR", "P", "F"))
+
+x_2902 = x |> filter(enrolled_unit == "DATA2902")
+x_2002 = x |> filter(enrolled_unit == "DATA2002")
+
+
+chisq.test(
+  table(x_2002$grade_abs), p=smh_data$proportion_2021, correct = FALSE
+)
+
+chisq.test(
+  table(x_2902$grade_abs), p=smh_data$proportion_2021, simulate.p.value = TRUE, B = 10000
+)
+
+```
+
+1.  **Hypothesis**: Under the null hypothesis, the distributions of DATA2002 and DATA2902 grades are consistent with the "grade inflated" proportions from 2021, or
+
+    $$
+    H_0: \begin{cases} p_{\text{HD}} = 0.257 \\ p_{\text{D}} = 0.385 \\ p_{\text{CR}} = 0.234 \\ p_{\text{P}} = 0.101 \\ p_{\text{F}} = 0.023 \end{cases} \\
+    H_1: \text{At least one of the following is not equal to the specified proportion:} \\ \begin{cases} p_{\text{HD}} \neq 0.257 \\ p_{\text{D}} \neq 0.385 \\ p_{\text{CR}} \neq 0.234 \\ p_{\text{P}} \neq 0.101 \\ p_{\text{F}} \neq 0.023 \end{cases}
+    $$
+
+2.  **Assumptions**: For the t test performed on DATA2002, there is an assumption of expected value cell counts above 5 for all cells, which is satisfied. The assumption for DATA2902 is that there is a expected value cell count that is less than 5, making the chi-squared approximation inaccurate, which is too satisfied.
+
+    ```{r}
+    all(chisq.test(
+      table(x_2002$grade_abs), p=smh_data$proportion_2021, correct = FALSE
+    )$ex > 5)
+    all(smh_data$proportion_2011 * sum(table(x_2902$grade_abs)) > 5) # false hence, monte carlo testing appropriate. 
+    ```
+
+3.  **Test statistic**: Test statistics for DATA2002 and DATA2902 tests respectively.
+
+    $$
+    \chi^2_{DATA2002} = \sum_{i=1}^{k} \frac{(O_i - E_i)^2}{E_i} \\
+    \chi^2_{DATA2902} = \frac{1}{B} \sum_{i=1}^{B} \sum_{i=1}^{k} \frac{(O_i - E_i)^2}{E_i}
+    $$
+
+4.  **P value:** The $p_{2002}=0.0275$ and $p_{2902}=0.0023$
+
+5.  **Decision**. At the 0.025 significance level, do not reject the null hypothesis for DATA2002, however do reject the DATA2902. Put in plain English, within the data there is enough evidence to say at the 0.025 significance threshold that grades do not follow the purported grade distribution of students in DATA2902 — implying that there is either more or less grade inflation. In DATA2002, there is not significant evidence to reject the null hypothesis, implying that at the 0.025 level there could be grade inflation in students.
+
+    Again, this is an imperfect test due to limitations discussed in section 2.2. Additionally, this test only measures the grades of students in DATA2X02, not all subjects. Given the DATA2902 students have a minimum entry requirement of a minimum grade of 65 in DATA1001 or equivalent, it makes sense that grade inflation is even greater in DATA2902, due to a selection bias of academically inclined students picking advanced subjects.
+
+\# ---
 
 # How do average time spent of HD students on studying compare to non HD students.
 
