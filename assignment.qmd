@@ -1,7 +1,8 @@
 ---
-title: "Your title here"
+title: "Academic Performance: Expectation, Residency and Grade Inflation"
 date: "`r Sys.Date()`"
 author: "530473439"
+bibliography: [refs/bibliography.bibtex, refs/Packages.bib]
 format: 
   html: 
     embed-resources: true # Creates a single HTML file as output
@@ -9,21 +10,26 @@ format:
     code-tools: true # Includes a menu to download the code file 
     # code-tools are particularly important if you use inline R to 
     # improve the reproducibility of your report
+execute:
+  echo: true # Show code
+  warning: false
+  message: false
 table-of-contents: true # (Optional) Creates a table of contents
-number-sections: true # (Optional) Puts numbers next to heading/subheadings
 ---
 
-Trying to analyse traits of HD students
+# 1. Introduction
 
-```{r}
+This report examines how academic performance is affected by academic expectation, residency and grade inflation in a sample of responses taken form a DATA2X02 elective survey. Through the use of hypothesis testing implemented through [@R-base], It finds that academic expectation is not homogeneous across populations of high, medium and low volume studying students. Additionally, it finds no significant relationship between academic performance and residency status and finds evidence that DATA2902 students are not conforming with grade inflation explored with [@smh] but that DATA2002 students grades data are consistent with a grade inflated distribution. These results are explored at 0.05, 0.05 and 0.025 confidence levels respectively, however due to poor survey sampling, response bias and sampling bias, these results should be cross validated through university wide studies to both expand the scope from DATA2X02 students and further investigate lower academic performance by residency and grade inflation to correct any inflation or academic underperformance if present.
+
+```{r setup_and_import_data, message = FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE)
+
 library(tidyverse)
-library(janitor)
-library(hms)
-library(patchwork)
-library(ggpubr)
-```
+#library(patchwork)
+#library(ggpubr)
 
-```{r}
+knitr::write_bib(c(.packages(),
+                   "knitr", "rmarkdown"), "refs/packages.bib")
 
 x = readxl::read_excel("data/DATA2x02_survey_2024_Responses.xlsx")
 old_names = colnames(x)
@@ -77,29 +83,108 @@ new_names = c(
   "country_of_birth",
   "wam",
   "shoe_size")
- # overwrite the old names with the new names:
 colnames(x) = new_names
 # combine old and new into a data frame:
 name_combo = bind_cols(New = new_names, Old = old_names)
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = TRUE)
+```
+
+``` {r}
+x = x |> filter(enrolled_unit == "DATA2902")
+glimpse(x)
+```
+# 2. Data Cleaning
+
+This report utilized base r for computation [@R-base], with data wrangling done with tidyverse [@R-tidyverse] dataframes. Environment used for 'knitting plots' and html generation was [@quarto]. Plots provided were generated with ggplot from [@R-tidyverse], with additional QQ-plots being generated with [@R-ggpubr] and plot 'concatenation' with [@R-patchwork]. Initial data importation and cleaning were sourced from [@tarr2024] and additional data processing was completed below with [@R-base].
+
+```{r}
+x = x |> 
+  dplyr::mutate(
+    #FOR INTRODUCTION BIAS ANLYSIS
+    height_clean = readr::parse_number(height),
+    height_clean = case_when(
+      height_clean >= 1000 ~ NA_real_,
+      height_clean <= 10 ~ NA_real_, #removing all inches
+      height_clean <= 2.5 ~ height_clean*100,
+      TRUE ~ height_clean
+    ),
+    
+    #USED THROUGHOUT REPORT & FOR INTRODUCTION BIAS ANALYSIS
+    wam_clean = case_when(
+      wam >= 95 & target_grade == "HIGH_DISTINCTION" ~ NA_real_,
+      wam <= 30 ~ NA_real_, #impossible to pass prerequisites with this wam
+      TRUE ~ wam),
+
+    gender_clean = case_when(
+      substr(gender, 1, 1)  == "M" ~ "Male",
+      substr(gender, 1, 1)  == "m" ~ "Male",
+      substr(gender, 1, 1) == "F" ~ "Female",
+      substr(gender, 1, 1) == "f" ~ "Female",
+      TRUE ~ "Other"),
+   
+      #USED IN HYPOTHESIS TEST 1 
+    weekly_study_hours = as.character(weekly_study_hours),
+    hours_numeric = readr::parse_number(weekly_study_hours),
+      hours_numeric = case_when(
+        hours_numeric > 100 ~ NA_real_,
+        TRUE ~ hours_numeric
+      ),
+      hours_buckets = case_when(
+        hours_numeric < 15 ~ "Low",
+        hours_numeric > 40 ~ "High",
+        TRUE ~ "Medium"
+      ),
+      grade = case_when(
+        wam_clean < 75 ~ "CR + P",
+        wam_clean < 85 ~ "D",
+        TRUE ~ "HD"
+      ),
+    
+    #USED IN HYOTHESIS TEST 2
+    Citizenship = case_when(
+        substr(country_of_birth, 1, 2) == "au" |
+        substr(country_of_birth, 1, 2) == "AU" |
+        substr(country_of_birth, 1, 2) == "Au"  ~ "Domestic",
+        #add case where proof of work implies citizenship. 
+        weekly_paid_work_hours >= 26 ~ "Domestic",
+        TRUE ~ "International"
+      ),
+      # including this criteria 
+      Citizenship = case_when(
+        Citizenship == "International" & 
+        living_arrangements == "With parent(s) and/or sibling(s)" ~ "Domestic",
+        TRUE ~ Citizenship
+      ),
+    
+    # USED IN HYPOTHESIS TEST 3. 
+      grade_abs = case_when(
+        wam_clean < 50 ~ "F",
+        wam_clean < 65 ~ "P",
+        wam_clean < 75 ~ "CR",
+        wam_clean < 85 ~ "D",
+        TRUE ~ "HD"
+    ),
+)
+  
 ```
 
 # 2.1 Data Quality & Data Set Discussion
 
 ## Is this a random sample of DATA2X02 students?
 
-Of the 759 students of data2x02 there were only 313 responses and hence a 41% response rate. As a majority of students did not respond there is significant room for the data set to not be a representative sample of DATA2X02 Students, or a "non-random data set". However, without conclusive descriptive statistics it is impossible to conclude. In section "what are potential biases?" we will demonstrate with a chi-squared test that this sample is not an independent sampling, implying that there is a selection bias within the data.
+Of the 759 students of data2x02 there were only `r length(x$timestamp)` responses and hence a `r round(length(x$timestamp)/759, 3)` response rate. As a majority of students did not respond there is significant room for the data set to not be a representative sample of DATA2X02 Students, or a "non-random data set". However, without conclusive descriptive statistics it is impossible to conclude. In section "what are potential biases?" we will demonstrate with a chi-squared test that this sample is not an independent sampling, implying that there is a selection bias within the data.
 
-One way to visualize the self selection bias is through a time series of responses over time as shown below.
+One way to visualize the self selection bias is through a time series of responses over time as shown in @fig-poi.
 
-```{r}
+```{r fig-poi, fig.cap="Time series chart of responses over time which generally follows a poisson distribution"}
 
-daily_counts <- x |>
+daily_counts = x |>
   group_by(timestamp) |>
   summarise(count = n())
 
 lambda = mean(daily_counts$count)
 
-time_series_plot <- x |>
+time_series_plot = x |>
   ggplot(aes(x = timestamp)) +
   geom_histogram(binwidth = 86400, color = "black", fill = "skyblue") + 
   labs(x = "Timestamp", y = "Frequency", title = "Frequency of Responses Over Time") +
@@ -111,9 +196,9 @@ time_series_plot <- x |>
 time_series_plot
 ```
 
-Which follows a general poisson distribution modeled by $X \sim Poisson(\lambda)$. However, there are
+Which follows a general poisson distribution modeled by $X \sim Poisson(\lambda)$. Within The graph however, there is a significant spike in responses around August the 7th, and similarly around the 12th. This could be due to tutors reminding students and allowing in class time to fill out the survey. Consequently, this dataset is not fully random, as some classes with tutors that were more eager in telling students to finish the survey would be more likely to be represented within the data leading to more uneven representation. Furthermore, "eager" students are likely to be over-represented in the data. Students that are punctual and go above and beyond to complete all work will have finished the survey at a higher rate than students that did not. It is likely that variables such as "When it comes to assignments / due tasks do you:" will have more responses of the type "do them immediately" than the reality represents. For the purposes of this report this is not a problem as that question will be avoided, however somewhat problematically this same effect is likely to misrepresent the true distribution of WAM, of which this report is greatly concerned with. Nonetheless, as will be established in @fig-height , this still approximates a normal distribuiton, and hence will not be a problem for this report. However, future reports could mitigate this by taking a more representative sample, as discussed in section 2.3.
 
-## What are the potential biases
+## What are the potential biases?
 
 Within this data set there are multiple biases, but primarily on account of the types of questions asked a response bias is present, and on account of the types of students that are inclined to respond to surveys, a selection bias is present. To determine weather a selection bias exists an additional chi-squared test for homogeneity among populations of data2902 and data2002. Under the null hypothesis the proportions of students in data2902 who responded, and data2002 who responded would be the same. This is an appropriate null hypothesis to test for independence of the two groups, as later through the report we will be analyzing traits of HD students of the sample of survey respondents.
 
@@ -125,48 +210,24 @@ responses = c(sum(x$enrolled_unit == "DATA2002", na.rm = TRUE),
               sum(x$enrolled_unit == "DATA2902", na.rm = TRUE)
               )
 non_responses = totals-responses
-responses
 mat = matrix(c(non_responses, responses), 2,2)
-mat
-chisq.test(mat, correct=FALSE)
-chisq.test(mat, correct=FALSE)$ex #checking to see if all expected counts are greater than 5
+intro_test = chisq.test(mat, correct=FALSE)
 
 ```
 
-Here the assumption of expected cell counts above 5 is made for the chi-squared approximation to be appropriate; a criteria that is met. Calculating the p-value with an p \>= 0.05 threshold for significance gives a p value of $2.45 \cdot 10^{-8}$; hence implying that there is a clear selection bias in the respondents of the survey. Further, this too provides a more definitive answer to "Is this a random data set of students?" — no, as there is a strong selection bias where data2902 students nominated themselves more frequently.
+Here the assumption of expected cell counts above 5 (`r all(intro_test$ex > 5)`) is made for the chi-squared approximation to be appropriate; a criteria that is met. Calculating the p-value with an p \>= 0.05 threshold for significance gives a p value of `r round(intro_test$p.value, 4)`; hence implying that there is a clear selection bias in the respondents of the survey. Further, this too provides a more definitive answer to "Is this a random data set of students?" — no, as there is a strong selection bias where data2902 students nominated themselves more frequently.
 
-As for response bias, there are a few poorly asked questions that lead to response bias. Take for instance average hours slept. For many respondents this is a guess, often rounded to the nearest hour. Or for instance height, which in general populations approximates a normal curve.
+To mitigate this strong bias present within the data set, this report has performed hypothesis testing on two of the 3 questions, treating the two as separate categories to correct for this. In the second hypothesis test, this report compares the means of international and domestic students, this has not been partitioned on unit enrollment, because there are . In the final hypothesis test, this report analyses the two units, DATA2002 and DATA2902 separately to account for the apparent difference in grade distribution as evident in @fig-height too, further mitigating the affect of selection bias on these results.
 
-```{r}
-#as height is being used to demonstrate a point of bucketing / rounding phenomena, it is appropriate to remove inches.
-x = x |> 
-  dplyr::mutate(
-    height_clean = readr::parse_number(height),
-    height_clean = case_when(
-      height_clean >= 1000 ~ NA_real_,
-      height_clean <= 10 ~ NA_real_, #removing all inches
-      height_clean <= 2.5 ~ height_clean*100,
-      TRUE ~ height_clean
-    ),
-    wam_clean = case_when(
-      wam >= 95 & target_grade == "HIGH_DISTINCTION" ~ NA_real_,
-      wam <= 30 ~ NA_real_, #impossible to pass prerequisites with this wam
-      TRUE ~ wam),
+As for response bias, there are a few poorly asked questions that lead to response bias. Take for instance average hours slept. For many respondents this is a guess, often rounded to the nearest hour. Or for instance height in, which in general populations approximates a normal curve. However in @fig-height there are a disproportionate amount of people that are of specifically 170cm, or 180cm. Due to the method of data cleaning, all responses in inches were removed as this is only to demonstrate a response bias, but there would be discrete jumps around 6', were heights recorded in inches included.
 
-    gender_clean = case_when(
-      substr(gender, 1, 1)  == "M" ~ "Male",
-      substr(gender, 1, 1)  == "m" ~ "Male",
-      substr(gender, 1, 1) == "F" ~ "Female",
-      substr(gender, 1, 1) == "f" ~ "Female",
-      TRUE ~ "Other")
-  )
-
+```{r fig-height, fig.asp=0.5, out.width= "100%", warning=FALSE, message=FALSE, fig.cap="On the left, histogram of heights in DATA2X02 demonstrating artefact binning, and on the right a histogram of Weighted Average Marks (WAM) of students in DATA2X02 sperated by class enrolment"}
 p1 = x |>
   ggplot()+
   aes(x = height_clean,
       fill = gender_clean) + 
   geom_histogram(binwidth = 1)+ 
-  labs(x = "Height (cm)", y = "Frequency") +
+  labs(x = "Height (cm)", y = "Frequency", fill="Height") +
   theme(
       legend.position = c(1, 1),
       legend.justification = c(1, 1),
@@ -180,7 +241,7 @@ p2 = x |>
       fill = enrolled_unit
       ) + 
   geom_histogram(binwidth = 4) + 
-  labs(x = "Weighted Average Mark", y = "Frequency") +
+  labs(x = "Weighted Average Mark", y = "Frequency", fill="Enrolled Class") +
   theme(
       legend.position = c(1, 1),
       legend.justification = c(1, 1),
@@ -192,50 +253,38 @@ p1  + p2 + plot_layout(ncol = 2)
 
 ```
 
-Although it could be argued that the sample in this case does represent normality somewhat accurately, there are "bin artefacts", or accumulations at the points, 160, 170, 175 and 180. This is one example of response bias where people round heights to the nearest discrete measurement. Similarly, in the plots for weighted average mark (WAM), rounding too seems to take place at 75, and around grade thresholds. The histogram of student WAM's visually conforms with an assumption of normality, however due to response bias responses tend to congregate around round grade thresholds such as distinction average (75) and credit average (65). Together this forms clear proof of response bias throught the sample in certain categories.
+Although it could be argued that the sample in this case does represent normality somewhat accurately, there are "bin artefacts", or accumulations at the points, 160, 170, 175 and 180. This is one example of response bias where people round heights to the nearest discrete measurement. Similarly, in the plots for weighted average mark (WAM) in @fig-height, rounding too seems to take place at 75, and around grade thresholds. The histogram of student WAM's visually conforms with an assumption of normality, however due to response bias responses tend to congregate around round grade thresholds such as distinction average (75) and credit average (65). Together this forms clear proof of response bias throught the sample in certain categories.
 
-As a bulk of this report is concerned with performing hypothesis testing on WAM scores of students in order to understand which factors are significant and aren't significant in student academic performance, and thus data-bias in WAM scores is very important. Although the histogram of WAM scores in figure 2 does exhibit binning artefacts, it is impossible to conclude because it appears to be a bi modal distribution under DATA2902 and DATA2002 students, and likely many other factors. Nonetheless, these binning artefacts will be addressed through appropriate data-wrangling and analysis with QQ-plots to determine if chosen test statistics are appropriate if normality is assumed. However the best way to mitigate binning artefacts would be through sampling methods and question selection, which will be explored within section 2.3.
+As a bulk of this report is concerned with performing hypothesis testing on WAM scores of students in order to understand which factors are significant and aren't significant in student academic performance, and thus data-bias in WAM scores is very important. Although the histogram of WAM scores in @fig-height does exhibit binning artefacts, it is impossible to conclude because it appears to be a bi modal distribution under DATA2902 and DATA2002 students, and likely many other factors. Nonetheless, these binning artefacts will be addressed through appropriate data-wrangling and analysis with QQ-plots to determine if chosen test statistics are appropriate if normality is assumed. However the best way to mitigate binning artefacts would be through sampling methods and question selection, which will be explored within section 2.3.
 
-## 2.3
+## Which questions needed improvement to generate useful data (e.g. in terms of the way the question was phrased or response validation)?
 
-A
+The primary woes of this survey in respect to its applicability in assessing academic performance are that the sample is selected by individuals self reporting their weighted average mark (WAM). This leads to a major response bias, wherein students, round, often over report and just outright not answer. This leads to grades that are likely to be inflated, and not deflated. Although as explored later in this report within @fig-height, there is a normal looking distribution with binning artefacts with some confounding between DATA2902 and DATA2002 students. Ultimately, the importance of research on student academic performance in universities and overall data integrity of the WAM results compelled the research into this question. However future studies could heavily benefit from increased accuracy if measures were taken to counteract some of these issues. For instance, if this study were commissioned by faculty or school leads much bias would be avoidable, as with unrestricted access to student grade data within the faculty would allow an in depth investigation into the pressing issues of academic underperfomance among certain groups and grade inflation, allowing potential issues to be resolved before controversies reach mainstream. For the purposes of the survey however, additional questions on academic performance such as high school results uploaded as PDF, academic transcripts or associated documents would increase the quality of responses. Furthermore, were surveys to be sent out randomly or students interviewed in person, more accurate responses would be given. Another important factor would be confidence of students. Many students with poor grades would be inclined to not share grades. Hence, it could be advantageous to look at factors that track academic performance that are not as embarrassing to students to disclose, such as socio-economic status group, Dalyell Scholar status, or weather students claim a merit based scholarship. Additionally, other confounding factors such as major also affect student WAM, so asking about student secondary majors would be important in undoing some confounding. Despite all its faults, academic performance still remains one of the more intact data collected within the survey. Questions like "How many hours do you sleep on average" and "favorite anime" are unlikely to yield meaningful result. Firstly, self reporting hours is prone to rounding errors by students, making studies relating sleep and academic performance an interesting yet impossible topic to explore. More precise tests such as asking students to wear sleep monitors as part of a study measuring sleep would yield far greater precision, and may incline students to take questions regarding academic performance more seriously. Additionally, prompts that ask for a "favorite anime" are unlikely to yield meaningful data, as due to the sheer amount of possible responses, and simultaneous neiche of the topic, making most students respond with nothing or no consistent results. Surveys on anime would be better off is they asked active anime-watchers, through targeting forums, or even better asking students to watch animes first and then respond to questions about them. This non-targeted questions is even more pronounced in the questions asking students "which urinals \[they\] use". Apart from being unlikely to yield any meaningful result and being generally rather non-predictive of anything other than gender which was already asked in the quiz, the targeted language at people that use mens bathrooms disqualifies approximately half the population of answering this question.
 
 # 2.2 Specific Hypothesis Tests
 
 ## Is a linkage model between target grades and 'high', 'low' and 'medium' hours studied per week consistent with observed data at the p \< 0.05 significance level?
 
-The purpose of investigating a linkage model between target grades (HD, D, CR, P, F) and hours studied, which was bucketed into low (0 - 15 h), medium (15 - 40h) and high ( 40+), was to see if students that expected higher grades studied more, or claimed to study more (due to survey limitations).
+The purpose of investigating a linkage model between target grades (HD, D, CR, P, F) and hours studied, which was bucketed into low (0 - 15 h), medium (15 - 40h) and high ( 40+ ), was to see if students that expected higher grades studied more, or claimed to study more (due to survey limitations). This dat is visualized in @fig-tab
+```{r fig-tab, fig.cap="Table of target grades and hours studied per week"}
+
+table_data = table(x$hours_buckets, x$grade)
+knitr::kable(table_data)
+
+
+```
 
 ```{r}
 
-x = x |> mutate(
-  weekly_study_hours = as.character(weekly_study_hours),
-  hours_numeric = readr::parse_number(weekly_study_hours),
-  hours_numeric = case_when(
-    hours_numeric > 100 ~ NA_real_,
-    TRUE ~ hours_numeric
-  ),
-  hours_buckets = case_when(
-    hours_numeric < 15 ~ "Low",
-    hours_numeric > 40 ~ "High",
-    TRUE ~ "Medium"
-  ),
-  grade = case_when(
-    wam_clean < 75 ~ "CR + P", # fail students not contained in dataset
-    wam_clean < 85 ~ "D",
-    TRUE ~ "HD"
-  )
-)
-
 table_full = table(x$hours_buckets, x$grade)
-all(chisq.test(matrix(table_full, 3, 3))$ex > 5) # all values are greather than 5
-chisq.test(matrix(table_full, 3, 3), p=c(1/9, 1:9))
+all_true = all(chisq.test(matrix(table_full, 3, 3))$ex > 5) # all values are greather than 5
+test1 = chisq.test(matrix(table_full, 3, 3), p=c(1/9, 1:9))
 
 ```
 
 1.  **Hypothesis**: $H_0: p_i=0.111, \ \text{for} \ i=1,2,...,9$ and the alternative hypothesis being $H_1:p_i\neq0.111 \ \text{for some} \ i=1,2,...,9$
 2.  **Assumptions:** That all expected cell counts are above 5. An assumption that is met, after credit and pass grades are combined.
-3.  **Decision:** As the p value is 0.1297, we do not reject the null hypothesis, as within the data there is sufficient evidence to suggest that there is a relationship between studying more and expecting higher grades.
+3.  **Decision:** As the p value is `r round(test1$p.value, 4)`, we do not reject the null hypothesis, as within the data there is sufficient evidence to suggest that there is a relationship between studying more and expecting higher grades.
 
 HD students Expectation of grades, do HD students expect significantly different results than non HD students. Proportions of expectations ought to remain consistent through
 
@@ -243,24 +292,9 @@ HD students Expectation of grades, do HD students expect significantly different
 
 Although the survey did not explicitly ask respondents citizenship, data on residency status can be inferred from the country of birth and weekly hours worked, and living arrangment.
 
-```{r}
+```{r fig-violin, fig.asp=0.5, out.width= "100%", warning=FALSE, message=FALSE, fig.cap="Grade distributions of students enrolled in DATA2002 and DATA2902 separated by (inferred) residency status of students."}
 
-x = x |> mutate(
-  Citizenship = case_when(
-    substr(country_of_birth, 1, 2) == "au" |
-    substr(country_of_birth, 1, 2) == "AU" |
-    substr(country_of_birth, 1, 2) == "Au"  ~ "Domestic",
-    #add case where proof of work implies citizenship. 
-    weekly_paid_work_hours >= 26 ~ "Domestic",
-    TRUE ~ "International"
-  ),
-  # including this criteria 
-  Citizenship = case_when(
-    Citizenship == "International" & 
-    living_arrangements == "With parent(s) and/or sibling(s)" ~ "Domestic",
-    TRUE ~ Citizenship
-  )
-)
+
 p1 = x |> ggplot() +
   aes(x = Citizenship, y = wam_clean, fill = Citizenship) +
   geom_violin(alpha = 0.6, color = "black") +
@@ -274,16 +308,14 @@ p1 = x |> ggplot() +
   theme_linedraw() +
   theme(plot.title = element_text(hjust = 0.5))
 
-p2 <-  ggqqplot(x, x = 'wam_clean', facet.by = 'Citizenship') +  labs(title = "QQ-Plot: WAM by Residency")
+p2 <-  ggqqplot(x, x = 'wam_clean', facet.by = 'Citizenship') +  labs(title = "WAM by Residency")
 
 p1 + p2 + plot_layout(ncol = 2)
 
 
 ```
 
-Figure 3: Grade distributions of students enrolled in DATA2002 and DATA2902 separated by (inferred) residency status of students.
-
-```{r}
+```{r fig-var, fig.asp=0.5, out.width= "50%", warning=FALSE, message=FALSE, fig.cap="Table of descriptive statistics"}
 
 kurtosis = function(x) {
   n <- length(x)
@@ -309,148 +341,50 @@ knitr::kable(table_data)
 
 ```
 
-1.  **Hypothesis**: Let $\mu_D$ and $\mu_I$ be average WAM scores for domestic and international students respectively. Under the null hypothesis $H_0:\mu_I=\mu_D$ vs $H_1:\mu_D>\mu_I$.
-
-2.  **Assumptions** For two sample t-tests, there are underlying assumptions of normal distribution and equal variances. As observed within the table of variances, the standard deviations for the two samples is 9 respectively, and hence a two sample t-test is appropriate. Furthermore, as observed within the violin plots in fig 2, the distribution is symmetric (visible on the overlay box plots). Domestic students have a marginally more leptokurtic distribution than International students, but both are relatively mesokurtic. Finally, relative normality is confirmed within the QQ-plots, however the non-linear distribution of sample,theoretical z score values in the qq plot on the extreme ends should case some aspersions on the final validity of the two sample t-test. Hence, the samples of domestic and international students appear to be normally distributed.\
-    \
-    Finally, there is another assumption made about international and domestic students. No question was posed within the survey asking respondents about residency status, and hence this was inferred through the following criteria for being a domestic student. "1. Born in Australia or 2. live with parents or siblings or 3, work more than 26 hours per week". For the purposes of this two sample t-test, it is fair to assume that this is a fair test for domestic residency status, as the final proportions of 126 to 135 represent the approximate proportions of domestic to international students at the University of Sydney, of which DATA2X02 survey respondents are a representative sample.
-
-3.  **Test Statistic** $$
-    T = \frac{\bar{X}_D - \bar{X}_I}{\sqrt{S_p^2 \left(\frac{1}{n_D} + \frac{1}{n_I}\right)}} \\ \text{Where pooled standard deviation is given by: } S_p^2 = \frac{(n_D - 1)S_D^2 + (n_I - 1)S_I^2}{n_D + n_I - 2} \\ \text{and Degrees of freedom by: }\text{df} = n_D + n_I - 2
-    $$
-
-4.  **Observed Test Statistic:** $t0=1.617$
-
-5.  **p-Value:** $P(t_{259} > 1.617)=0.05355$
-
-6.  **Decision:** at the $\alpha=0.05$ significance level, do not reject the null hypothesis. Or otherwise, at the 0.05 significance level there is no reason to believe that the null hypothesis is not true within the data presented. However, given that the p value is on the threshold of 0.05, it would be wise to look further into the issue.\
-    \
-    Given the consequence of the alternative hypothesis being true within data, ie that domestic students score higher grades on average than international students, it would be advisable for the University and its departments to perform more extensive studies on the issue, and if the alternative hypothesis were proven true, work to resolve it by either strengthening international entry requirements, providing additional support to struggling students or look into resolving ways the ways in which students are being disadvantaged as a population. Hence more testing and data is required to achieve a conclusive result.
-
 ```{r}
-#knitr::
 domestic = x |>
   filter(Citizenship == "Domestic") |>
   select(wam_clean)
 international = x |>
   filter(Citizenship == "International") |>
   select(wam_clean)
-t.test(domestic, international, correct=FALSE, var.eq = TRUE,
+test2 = t.test(domestic, international, correct=FALSE, var.eq = TRUE,
        alternative="greater")
 
 ```
 
-## Among historically HD-scoring students, there is no significant difference in anxiety levels based on the number of hours spent studying each week.
+1.  **Hypothesis**: Let $\mu_D$ and $\mu_I$ be average WAM scores for domestic and international students respectively. Under the null hypothesis $H_0:\mu_I=\mu_D$ vs $H_1:\mu_D>\mu_I$.
 
-```{r}
-x = x |> mutate(
-  anxiety_buckets = case_when(
-    daily_anxiety_frequency < 3 ~ "Low",
-    daily_anxiety_frequency < 6 ~ "Moderate",
-    TRUE ~ "High"
-  ),
-  study_buckets = case_when(
-    hours_numeric < 10 ~ "0-10",
-    hours_numeric < 20 ~ "10-20",
-    hours_numeric < 30 ~ "20-30",
-    hours_numeric < 40 ~ "30-40",
-    hours_numeric < 50 ~ "40-50",
-    TRUE ~ "50+"
-  ),
-) |> mutate(
-  anxiety_buckets = factor(anxiety_buckets, levels = c("Low", "Moderate", "High")),
-  study_buckets = factor(study_buckets, levels = c("0-10", "10-20", "20-30", "40-50", "50+"))
-  )
+2.  **Assumptions** For two sample t-tests, there are underlying assumptions of normal distribution and equal variances. As observed within @fig-var, the standard deviations for the two samples is approximately 9 respectively, and hence a two sample t-test is appropriate, and there is no need to perform a Welch test. Furthermore, as observed within the violin plots of @fig-violin, the distribution is symmetric (visible on the overlay box plots). Domestic students have a marginally more leptokurtic distribution than International students (@fig-var), but both are relatively mesokurtic. Finally, relative normality is confirmed within the QQ-plots in @fig-violin, however the non-linear distribution of sample, theoretical z score values in the QQ-plot in @fig-violin on the extreme ends should case some aspersions on the final validity of the two sample t-test. Hence, the samples of domestic and international students appear to be normally distributed.\
+    \
+    Finally, there is another assumption made about international and domestic students. No question was posed within the survey asking respondents about residency status, and hence this was inferred through the following criteria for being a domestic student. "1. Born in Australia or 2. live with parents or siblings or 3, work more than 26 hours per week". For the purposes of this two sample t-test, it is fair to assume that this is a fair test for domestic residency status, as the final proportions of 126 to 135 represent the approximate proportions of domestic to international students at the University of Sydney, of which DATA2X02 survey respondents are a representative sample.
 
-hd_data = x |> filter(wam_clean >= 90)
+3.  **Test Statistic** $$
+    T = \frac{\bar{X}_D - \bar{X}_I}{\sqrt{S_p^2 \left(\frac{1}{n_D} + \frac{1}{n_I}\right)}} 
+       $$ Where pooled standard deviation is given by: $$
+     S_p^2 = \frac{(n_D - 1)S_D^2 + (n_I - 1)S_I^2}{n_D + n_I - 2} 
+    $$and Degrees of freedom by: $$
+    \text{df} = n_D + n_I - 2
+    $$
 
-table_full = table(hd_data$anxiety_buckets, hd_data$study_buckets)
+4.  **Observed Test Statistic:** $t_0=$ `r round(test2$statistic, 3)`
 
-ex = chisq.test(table_full, simulate.p.value=TRUE)$ex
+5.  **p-Value:** $P(t_{259} > 1.617)=$ `r round(test2$p.value, 4)`
 
-high = ex[1, 1:5]
-low = ex[2, 1:5]
-moderate = ex[3, 1:5]
-long = c(high, low, moderate)
-high
+6.  **Decision:** at the $\alpha=0.05$ significance level, do not reject the null hypothesis. Or otherwise, at the 0.05 significance level there is no reason to believe that the null hypothesis is not true within the data presented. However, given that the p value is on the threshold of 0.05, it would be wise to look further into the issue.\
+    \
+    Given the consequence of the alternative hypothesis being true within data, ie that domestic students score higher grades on average than international students, it would be advisable for the University and its departments to perform more extensive studies on the issue, and if the alternative hypothesis were proven true, work to resolve it by either strengthening international entry requirements, providing additional support to struggling students or look into resolving ways the ways in which students are being disadvantaged as a population. Hence more testing and data is required to achieve a conclusive result.
 
-length(x|>filter(grade=="HD"))
+## At the 0.025 significance level, is there evidence of "grade inflation" for DATA2002 or DATA2902 students?
 
-p2 = x |> filter(grade=="HD") |> filter(study_buckets != "50+") |> select(anxiety_buckets, study_buckets) |> ggplot(
-  aes(
-    anxiety_buckets,
-  )
-) +
-  geom_bar(
-    aes(fill=study_buckets),
-    position = "dodge"
-  )
-p2
+This Earlier this year a Sydney Morning Herald article [@smh] alleged grade inflation with data suggesting that grade distributions since 2011 had become more positive skewed in 2021. The proportions of the alleged grades are displayed @fig-bar.
 
-
-
-
-
-```
-
-------------------------------------------------------------------------
-
-Does a distribution of HD student expected values over hours studied and
-
-```{r}
-hd_data = x |> filter(grade == "HD") 
-cr_data = x |> filter(grade == "CR + P")
-
-table_hd = table(hd_data$anxiety_buckets, hd_data$study_buckets_fine)
-chisq.test(table_hd, simulate.p.value=FALSE)$ex
-chisq.test(table_hd, simulate.p.value=TRUE)$ex
-?chisq.test
-
-# Load necessary library
-library(ggplot2)
-library(reshape2)
-
-# Create the data frame
-
-
-
-
-
-```
-
-```{r}
-# Create a data frame with your proportions
-data <- data.frame(
-  Category = c("HD", "D", "CR", "P", "F"),
-  Proportion = c(25.7, 38.5, 23.4, 10.1, 2.3)
-)
-
-# Convert proportions to fractions for the pie chart
-data$Fraction <- data$Proportion / 100
-
-# Create the pie chart
-ggplot(data, aes(x = "", y = Fraction, fill = Category)) +
-  geom_bar(width = 1, stat = "identity") +
-  coord_polar(theta = "y") +
-  labs(title = "Proportions of Categories") +
-  theme_void() +
-  theme(legend.title = element_blank())
-```
-
-# ---- GRADE INFLATION
-
-# At the 0.025 significance level, is there evidence of "grade inflation" for DATA2002 or DATA2902 students?
-
-This Earlier this year a Sydney Morning Herald article by XXXX alleged grade inflation with data suggesting that grade distributions since 2011 had become more positive skewed in 2021. The proportions of the alleged grades are displayed below.
-
-```{r}
+```{r fig-bar, fig.cap="Grade inflation over time as alleged by the SMH article (left) and grade distributions on the right as observed in DATA2X02"}
 smh_data = data.frame(
   Category = c("HD", "D", "CR", "P", "F"),
   proportion_2021 = c(0.257, 0.385, 0.234, 0.101, 0.023),
   proportion_2011 = c(0.077, 0.228, 0.352, 0.299, 0.044)
 )
-
-# Convert to long format
 
 p1 = smh_data |> 
   pivot_longer(
@@ -459,46 +393,75 @@ p1 = smh_data |>
     values_to = "Proportion"
   ) |> 
   mutate(
-    Category = factor(Category, levels = c("HD", "D", "CR", "P", "F"))
+    Category = factor(Category, levels = c("HD", "D", "CR", "P", "F")),
+    Year = recode(Year, proportion_2011 = "2011", proportion_2021 = "2021") # Recode the Year column
   ) |> 
   ggplot(aes(x = Category, y = Proportion, fill = Year)) +
   geom_bar(stat = "identity", position = "dodge") +
-  scale_fill_manual(values = c("proportion_2011" = "red", "proportion_2021" = "blue")) +
-  labs(title = "Proportions by Category and Year From the Sydney Morning Herald Article", x = "Category", y = "Proportion") +
+  scale_fill_manual(values = c("2011" = "red", "2021" = "blue")) +
+  labs(title = "Proportions from SMH") +
   theme_minimal()
 
-p1
+p2 = x |> drop_na() |> select(enrolled_unit, grade_abs) |> ggplot(
+  aes(
+    enrolled_unit,
+  )
+) +
+  geom_bar(
+    aes(fill=grade_abs),
+    position = "dodge"
+  ) + labs(title="DATA2X02 Grade Distribution", x="Enrolled Class", y="counts of WAM", fill="Grade") + theme_minimal() + theme(
+    plot.title = element_text(hjust = 0.5)  # Center the title
+  )
+p2
+  
+
+p1 + p2
 ```
 
-To verify weather the students of DATA2002 are experiencing this grade inflation we will perform a chi-squared test, or a goodness of fit test, with null hypothesis being the proportions alleged in the Sydney Morning Herald Article. This test will be performed twice, once for DATA2002 and once for DATA2902.
+To verify weather the students of DATA2002 are experiencing this grade inflation we will perform a chi-squared test, or a goodness of fit test, with null hypothesis being the proportions alleged in the Sydney Morning Herald Article [@smh] as visualized in @fig-bar. This test will be performed twice, once for DATA2002 and once for DATA2902. The Tables for DATA2002 and DATA2902 are shown with grade distribution in @fig-prop.
+
+```{r fig-prop, fig.cap="Grades of students enrolled in DATA2902 and DATA2002"}
+
+table_data = x |>
+  select(enrolled_unit, grade_abs) |> 
+  group_by(enrolled_unit) |> 
+  drop_na() |>
+  summarise(
+    HD = sum(grade_abs == "HD"),
+    D = sum(grade_abs == "D"),
+    CR = sum(grade_abs == "CR"),
+    P = sum(grade_abs == "P"),
+    `F` = sum(grade_abs == "F"),
+    Total = sum(grade_abs %in% c("HD", "D", "CR", "P", "F"))
+  ) |>
+  rename(
+    `Enrolled Unit` = enrolled_unit
+  )
+
+knitr::kable(table_data)
+
+# knitr::kable(table_data)
+```
 
 Due to a smaller sample size, the goodness of fit test for DATA2902 has to be performed with a simulated p value, due to low expected cell counts rendering the approximation to the chi-squared distribution less accurate.
 
-Additionally, a more stringent significance level was chosen for this test. Much of the Sydney Morning Herald article analysis outlines how grade inflation has negative societal implications and how "grade inflation could devalue degrees". Hence, hypothesis testing should reflect this additional importance, and to avoid false alarms and more stringent threshold for significance was chosen.
+Additionally, a more stringent significance level was chosen for this test. Much of the article analysis outlines how grade inflation has negative societal implications and how "grade inflation could devalue degrees" [@smh]. Hence, hypothesis testing should reflect this additional importance, and to avoid false alarms and more stringent threshold for significance was chosen.
 
 ```{r}
-set.seed(100)
 
-x = x |> mutate (
-  grade_abs = case_when(
-    wam_clean < 50 ~ "F",
-    wam_clean < 65 ~ "P",
-    wam_clean < 75 ~ "CR",
-    wam_clean < 85 ~ "D",
-    TRUE ~ "HD"
-  ),
-)
+set.seed(100) # since using simulate.p.values
+
 x$grade_abs = factor(x$grade_abs, levels = c("HD", "D", "CR", "P", "F"))
 
 x_2902 = x |> filter(enrolled_unit == "DATA2902")
 x_2002 = x |> filter(enrolled_unit == "DATA2002")
 
-
-chisq.test(
+test3 = chisq.test(
   table(x_2002$grade_abs), p=smh_data$proportion_2021, correct = FALSE
 )
 
-chisq.test(
+test4 = chisq.test(
   table(x_2902$grade_abs), p=smh_data$proportion_2021, simulate.p.value = TRUE, B = 10000
 )
 
@@ -507,42 +470,34 @@ chisq.test(
 1.  **Hypothesis**: Under the null hypothesis, the distributions of DATA2002 and DATA2902 grades are consistent with the "grade inflated" proportions from 2021, or
 
     $$
-    H_0: \begin{cases} p_{\text{HD}} = 0.257 \\ p_{\text{D}} = 0.385 \\ p_{\text{CR}} = 0.234 \\ p_{\text{P}} = 0.101 \\ p_{\text{F}} = 0.023 \end{cases} \\
-    H_1: \text{At least one of the following is not equal to the specified proportion:} \\ \begin{cases} p_{\text{HD}} \neq 0.257 \\ p_{\text{D}} \neq 0.385 \\ p_{\text{CR}} \neq 0.234 \\ p_{\text{P}} \neq 0.101 \\ p_{\text{F}} \neq 0.023 \end{cases}
+    H_0: \begin{cases} p_{\text{HD}} = 0.257 \newline p_{\text{D}} = 0.385 \newline p_{\text{CR}} = 0.234 \newline p_{\text{P}} = 0.101 \newline p_{\text{F}} = 0.023 \end{cases} \
+    $$ and for H1, at least one of the following is not equal to the specified proportion: $$
+    H_1: \\ \begin{cases} p_{\text{HD}} \neq 0.257 \\ p_{\text{D}} \neq 0.385 \\ p_{\text{CR}} \neq 0.234 \\ p_{\text{P}} \neq 0.101 \\ p_{\text{F}} \neq 0.023 \end{cases}
     $$
 
-2.  **Assumptions**: For the t test performed on DATA2002, there is an assumption of expected value cell counts above 5 for all cells, which is satisfied. The assumption for DATA2902 is that there is a expected value cell count that is less than 5, making the chi-squared approximation inaccurate, which is too satisfied.
-
     ```{r}
-    all(chisq.test(
+    all_data2002 = all(chisq.test(
       table(x_2002$grade_abs), p=smh_data$proportion_2021, correct = FALSE
     )$ex > 5)
-    all(smh_data$proportion_2011 * sum(table(x_2902$grade_abs)) > 5) # false hence, monte carlo testing appropriate. 
+    all_data2902 = all(smh_data$proportion_2011 * sum(table(x_2902$grade_abs)) > 5) # false hence, monte carlo testing appropriate. 
     ```
+
+2.  **Assumptions**: For the t test performed on DATA2002, there is an assumption of expected value cell counts above 5 for all cells, which is satisfied (`r all_data2002`). The assumption for DATA2902 is that there is a expected value cell count that is less than 5 (`r all_data2902`), making the chi-squared approximation inaccurate and hence ; which is too satisfied.
 
 3.  **Test statistic**: Test statistics for DATA2002 and DATA2902 tests respectively.
 
     $$
-    \chi^2_{DATA2002} = \sum_{i=1}^{k} \frac{(O_i - E_i)^2}{E_i} \\
+    \chi^2_{DATA2002} = \sum_{i=1}^{k} \frac{(O_i - E_i)^2}{E_i} 
+    $$ $$
     \chi^2_{DATA2902} = \frac{1}{B} \sum_{i=1}^{B} \sum_{i=1}^{k} \frac{(O_i - E_i)^2}{E_i}
     $$
 
-4.  **P value:** The $p_{2002}=0.0275$ and $p_{2902}=0.0023$
+4.  **P value:** The $p_{2002}=$ `r test3$p.value` and $p_{2902}=$ `r test4$p.value`
 
 5.  **Decision**. At the 0.025 significance level, do not reject the null hypothesis for DATA2002, however do reject the DATA2902. Put in plain English, within the data there is enough evidence to say at the 0.025 significance threshold that grades do not follow the purported grade distribution of students in DATA2902 — implying that there is either more or less grade inflation. In DATA2002, there is not significant evidence to reject the null hypothesis, implying that at the 0.025 level there could be grade inflation in students.
 
     Again, this is an imperfect test due to limitations discussed in section 2.2. Additionally, this test only measures the grades of students in DATA2X02, not all subjects. Given the DATA2902 students have a minimum entry requirement of a minimum grade of 65 in DATA1001 or equivalent, it makes sense that grade inflation is even greater in DATA2902, due to a selection bias of academically inclined students picking advanced subjects.
 
-\# ---
-
-# How do average time spent of HD students on studying compare to non HD students.
-
-Comparing the mean study times of students who scored a HD grade against students who did not score a HD grade.
-
-# How does employment affect study habits of HD students
-
-Take a subset of data where all students scored HD historically and filter for realistic submissions. How does the employment status (casual, part time, full time) of students influence hours studied.
-
 # 3. Conclusion
 
-Here we have showed that
+This report has analysed factors pertaining to academic performance. At the 0.05 significance level, it has found that the proportions of students that have higher target grades is not proportional with the study hours. Furthermore at the 0.05 significance level it finds no difference between the grades of domestic and international students within the presented data. Furthermore, at the 0.025 significance level there is evidence of grades matching with a proportion of grade inflation as mentioned in a [@smh] article in students of DATA2002, but no such evidence of this distribution of inflated grades being present in the scores of DATA2902 Students. However, self selection bias, response bias, and a data set of only DATA2X02 students suggests that these results are limited, and require more investigation. Further reports should expand on the scope to ensure that the significant topic matters pertaining to grade inflation and poor academic performance among groups are either non-issues, or dealt with accordingly.
